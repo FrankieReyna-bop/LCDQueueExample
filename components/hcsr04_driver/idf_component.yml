@@ -1,0 +1,10 @@
+version: "1.0.0"
+license: "MIT"
+description: ESP IDF driver for the HC SR04 ultrasonic module module with 2 bits control interface
+url: "https://github.com/vgerwen/hcsr04"
+issues: https://github.com/vgerwen/hcsr04/issues
+repository: "https://github.com/vgerwen/hcsr04.git"
+maintainers:
+  - "Aad van Gerwen <vgerwen@yahoo.com>"
+dependencies:
+  idf: ">=4.4.0"
