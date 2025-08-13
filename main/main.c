@@ -14,13 +14,15 @@
 #include "hcsr04_driver.h"
 
 QueueHandle_t queueHandle;
+SemaphoreHandle_t i2cMutex = NULL;
 
-#define LCDADDR 0x27
+#define LCDADDR1 0x27
+#define LCDADDR2 0x26
 
-void lcd_disp(char *str) {
-    lcd_clear(LCDADDR);
-    lcd_put_cursor(LCDADDR, 0, 0);
-    lcd_send_string(LCDADDR, str);
+void lcd_disp(char *str, uint8_t lcd) {
+    lcd_clear(lcd);
+    lcd_put_cursor(lcd, 0, 0);
+    lcd_send_string(lcd, str);
 }
 
 
@@ -41,36 +43,71 @@ void hcsr04_task(void *pvParameters)
             xQueueSend(queueHandle, &afstand, portMAX_DELAY);
         }    
         // 0,5 second delay before starting new measurement
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        vTaskDelay(300 / portTICK_PERIOD_MS);
     }
 }
 
-void lcd_task(void *pvParameters) {
+void LCD_task1(void *lcd_addr) {
     uint32_t val;
+    int lcd = (uint32_t)lcd_addr;
     char str[20];
-    lcd_init(LCDADDR);
     while(1) {
         str[0] = '\0';
         if (xQueueReceive(queueHandle, &val, portMAX_DELAY) == pdPASS) {
             snprintf(str, sizeof(str), "Dist: %ld", val);
-            lcd_disp(str);
+            if(xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+                lcd_disp(str, lcd);
+                xSemaphoreGive(i2cMutex);
+                vTaskDelay(300 / portTICK_PERIOD_MS);
+            }
         }
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
+}
+
+void LCD_task2(void *lcd_addr) {
+    int i=0;   // iteration counter
+    char numst[20];  // place to hold string to print
+    
+    int lcd = (uint32_t)lcd_addr;
+    char buffer[20];
+    lcd_put_cursor(lcd, 0, 0);   // Set cursor position to   row, column
+    sprintf(buffer, "Works: 0x%x", lcd);
+    lcd_send_string(lcd, buffer);
+    xSemaphoreGive(i2cMutex);
+    while (1) {
+        if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+            /* We were able to obtain the semaphore and can now access the
+//                 shared resource. */
+            lcd_put_cursor(lcd, 1, 0);
+
+            sprintf(numst, "N: %04d", i++);
+
+            lcd_send_string(lcd, numst);     // Display the count (numst)
+            //usleep(3*d100ms);
+
+            /* We have finished accessing the shared resource. Release the
+            semaphore. */
+            xSemaphoreGive(i2cMutex);
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
     }
 }
 
 void app_main(void)
 {
     i2c_master_init();
+    i2cMutex = xSemaphoreCreateBinary();
     // Create measurement task
-    queueHandle = xQueueCreate(10, sizeof(uint32_t));
+    queueHandle = xQueueCreate(15, sizeof(uint32_t));
     if (queueHandle == NULL) {
         // Failed to create the queue
         printf("Queue creation failed\n");
         return;
     }
-    
+    lcd_init(LCDADDR1);
+    lcd_init(LCDADDR2);
 
     xTaskCreate(hcsr04_task, "HSRC04 task", 2048, NULL, 4, NULL);
-    xTaskCreate(lcd_task, "LCD_task", 2048, NULL, 4, NULL);
+    xTaskCreate(LCD_task1, "LCD_task1", 2048,  (void*)LCDADDR1, 4, NULL);
+    xTaskCreate(LCD_task2, "LCD_task2", 2048,  (void*)LCDADDR2, 4, NULL);
 }

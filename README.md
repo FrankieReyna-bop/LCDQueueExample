@@ -6,15 +6,12 @@ Code demonstrates use of a Queue, a way of passing data between tasks that seaml
 2 LCDs, HCSR04 ultrasound sensor
 
 2 LCDs:
-    - SDA (GPIO 4)
-
-    - SCD (GPIO 3)
+    - SDA (GPIO 4) - SCD (GPIO 3)
 
 _LCDs *MUST* be different addresses. Address of LCD called can be edited at the top of main.c_
 
 HCSR04:
     - Trig (GPIO 14)
-    
     - Echo (GPIO 15)
 
 ## Contents
