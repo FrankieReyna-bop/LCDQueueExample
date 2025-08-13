@@ -19,12 +19,15 @@ SemaphoreHandle_t i2cMutex = NULL;
 #define LCDADDR1 0x27
 #define LCDADDR2 0x26
 
+// code to streamline displaying
+
 void lcd_disp(char *str, uint8_t lcd) {
     lcd_clear(lcd);
     lcd_put_cursor(lcd, 0, 0);
     lcd_send_string(lcd, str);
 }
 
+// measures from HCSR04, puts in queue 
 
 void hcsr04_task(void *pvParameters)
 {
@@ -47,10 +50,17 @@ void hcsr04_task(void *pvParameters)
     }
 }
 
+// Not really a perfect implementation. If you think about it, depending on whether we recieve the semaphore,
+// we could lose data since we would take the queue number, not display it, and then take another number from queue.
+// Perhaps we should make it wait till it can display it? but then again that delays the queue and puts them out of sync.
+// Maybe the LCD task should just run really fast. Will think about.
+
 void LCD_task1(void *lcd_addr) {
     uint32_t val;
     int lcd = (uint32_t)lcd_addr;
     char str[20];
+    
+
     while(1) {
         str[0] = '\0';
         if (xQueueReceive(queueHandle, &val, portMAX_DELAY) == pdPASS) {
@@ -63,6 +73,8 @@ void LCD_task1(void *lcd_addr) {
         }
     }
 }
+
+// Following code from previous 3 task tests
 
 void LCD_task2(void *lcd_addr) {
     int i=0;   // iteration counter
@@ -97,13 +109,16 @@ void app_main(void)
 {
     i2c_master_init();
     i2cMutex = xSemaphoreCreateBinary();
-    // Create measurement task
+
+    // Online example of how to handle queue, first parameter # of spots in queue, second size of data
+
     queueHandle = xQueueCreate(15, sizeof(uint32_t));
     if (queueHandle == NULL) {
-        // Failed to create the queue
         printf("Queue creation failed\n");
         return;
     }
+
+    // Lazy, initialize in app main
     lcd_init(LCDADDR1);
     lcd_init(LCDADDR2);
 
