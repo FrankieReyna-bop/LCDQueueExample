@@ -10,7 +10,7 @@ Code demonstrates use of a Queue, a way of passing data between tasks that seaml
 
     - SCD (GPIO 3)
 
-# _LCDs *MUST* be different addresses. Address of LCD called can be edited at the top of main.c_
+_LCDs *MUST* be different addresses. Address of LCD called can be edited at the top of main.c_
 
 HCSR04:
     - Trig (GPIO 14)
